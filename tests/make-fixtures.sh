@@ -17,6 +17,7 @@
 #                        so these three are the only way to get real archives
 #                        at each width. extract.sh must treat all of them as
 #                        entry points.
+#   upper-case/          SHOW.PART1.RAR .. SHOW.PART7.RAR
 #   single-volume/       solo.rar
 
 set -e
@@ -60,6 +61,17 @@ build_fixture part-1digit    5000 show.rar -v1000b
 build_fixture part-2digit   36000 show.rar -v1000b
 build_fixture part-3digit  150000 show.rar -v1000b
 
+# rar always writes the .partNN.rar suffix in lower case, so an upper case set
+# has to be produced by renaming. This is what archives written on Windows
+# commonly look like.
+build_fixture upper-case     5000 SHOW.rar -v1000b
+(
+    cd "$fixtures_dir/upper-case"
+    for volume in *; do
+        mv "$volume" "$(printf '%s' "$volume" | tr '[:lower:]' '[:upper:]')"
+    done
+)
+
 echo "Building single-volume/ ..."
 rm -rf "${fixtures_dir:?}/single-volume"
 mkdir -p "$fixtures_dir/single-volume"
@@ -72,7 +84,7 @@ mkdir -p "$fixtures_dir/single-volume"
 
 echo
 echo "Fixtures built:"
-for dir in old-style-volumes part-1digit part-2digit part-3digit single-volume; do
+for dir in old-style-volumes part-1digit part-2digit part-3digit upper-case single-volume; do
     count=$(find "$fixtures_dir/$dir" -type f | wc -l | tr -d ' ')
     first=$(find "$fixtures_dir/$dir" -type f -exec basename {} \; | sort | head -1)
     printf '  %-20s %4s files (first: %s)\n' "$dir" "$count" "$first"

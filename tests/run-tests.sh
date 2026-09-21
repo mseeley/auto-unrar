@@ -102,6 +102,10 @@ entry_points=(
     c.part001.rar
     d.part0001.rar
     e.part00001.rar
+    UPPER.RAR
+    Mixed.Rar
+    upperparts.PART01.RAR
+    mixedparts.Part001.Rar
 )
 later_volumes=(
     a.part2.rar
@@ -113,6 +117,8 @@ later_volumes=(
     d.part0002.rar
     f.part10.rar
     g.part100.rar
+    upperparts.PART02.RAR
+    mixedparts.Part002.Rar
 )
 for name in "${entry_points[@]}" "${later_volumes[@]}"; do
     touch "$work_dir/select/$name"
@@ -152,8 +158,10 @@ run_scan "$work_dir/extract" DELETE_RAR_AFTER_EXTRACTION=true
 
 for i in "${!fixture_names[@]}"; do
     name="${fixture_names[$i]}"
+    # -iname, or an upper case volume left behind would go uncounted and the
+    # upper-case fixture would pass without proving anything.
     remaining=$(find "$work_dir/extract/$name" -type f \
-        \( -name '*.rar' -o -name '*.[r-z][0-9][0-9]' \) | wc -l | tr -d ' ')
+        \( -iname '*.rar' -o -iname '*.[r-z][0-9][0-9]' \) | wc -l | tr -d ' ')
     check "$name: all ${fixture_counts[$i]} volumes deleted" "0" "$remaining"
 
     # The payload should have survived the cleanup.
