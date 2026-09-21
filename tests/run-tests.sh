@@ -5,12 +5,20 @@
 #
 #   ./tests/make-fixtures.sh && ./tests/run-tests.sh
 #
+# To test the image rather than the host, use run-in-docker.sh. The host and
+# the container disagree on things these tests depend on, notably GNU versus
+# BSD find and whether the filesystem is case sensitive.
+#
 # Suite 1 checks which archives the scanner treats as entry points. It uses
 # empty files, so it can cover part-number widths that would need thousands of
 # real volumes to reproduce.
 #
 # Suite 2 runs real extractions with deletion enabled and checks that no
 # archive volumes are left behind.
+#
+# Environment:
+#   EXTRACT_SH      script under test, defaults to the one beside this directory
+#   TEST_WORK_DIR   scratch directory, defaults to tests/work
 
 # Job control, so each scan runs in its own process group and can be shut down
 # along with the sleep it spawns. Killing the group avoids needing pkill, which
@@ -20,7 +28,8 @@ set -m
 tests_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_dir="$(dirname "$tests_dir")"
 fixtures_dir="$tests_dir/fixtures"
-work_dir="$tests_dir/work"
+extract_sh="${EXTRACT_SH:-$repo_dir/extract.sh}"
+work_dir="${TEST_WORK_DIR:-$tests_dir/work}"
 scan_log="$work_dir/scan.log"
 
 passed=0
@@ -52,7 +61,7 @@ run_scan() {
     rm -f "$log"
 
     env SOURCE_DIRECTORY="$source" SLEEP_TIME=30 "$@" \
-        bash "$repo_dir/extract.sh" > "$log" 2>&1 &
+        bash "$extract_sh" > "$log" 2>&1 &
     local pid=$!
 
     local last=-1 size=0 stable=0
