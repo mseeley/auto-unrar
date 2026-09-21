@@ -1,0 +1,6 @@
+# The image needs only the two scripts the Dockerfile copies. Excluding
+# everything else and re-including those keeps fixtures, tests, git history and
+# the readme image out of the build context. If the Dockerfile starts copying
+# another file, add a matching "!" line here.
+*
+!extract.sh
