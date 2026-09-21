@@ -5,8 +5,12 @@
 #
 #   ./tests/make-fixtures.sh && ./tests/run-tests.sh
 #
-# Runs real extractions with deletion enabled and checks that no archive
-# volumes are left behind.
+# Suite 1 checks which archives the scanner treats as entry points. It uses
+# empty files, so it can cover part-number widths that would need thousands of
+# real volumes to reproduce.
+#
+# Suite 2 runs real extractions with deletion enabled and checks that no
+# archive volumes are left behind.
 
 # Job control, so each scan runs in its own process group and can be shut down
 # along with the sleep it spawns. Killing the group avoids needing pkill, which
@@ -17,6 +21,7 @@ tests_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_dir="$(dirname "$tests_dir")"
 fixtures_dir="$tests_dir/fixtures"
 work_dir="$tests_dir/work"
+scan_log="$work_dir/scan.log"
 
 passed=0
 failed=0
@@ -33,13 +38,17 @@ check() {
     fi
 }
 
-# Runs one scan of extract.sh over a directory and echoes its output. The script
-# loops forever, so this waits for the output to stop growing (meaning the scan
-# finished and it has gone to sleep) and then stops it.
+# Runs one scan of extract.sh over a directory, leaving its output in
+# $scan_log. The script loops forever, so this waits for the output to stop
+# growing (meaning the scan finished and it has gone to sleep) and then stops it.
+#
+# Deliberately not a command substitution: bash 5 turns job control off inside
+# one, so the background job would not lead its own process group and the group
+# kill below would quietly do nothing.
 run_scan() {
     local source="$1"
     shift
-    local log="$work_dir/scan.log"
+    local log="$scan_log"
     rm -f "$log"
 
     env SOURCE_DIRECTORY="$source" SLEEP_TIME=30 "$@" \
@@ -64,16 +73,63 @@ run_scan() {
     kill -- -"$pid" 2>/dev/null
     kill "$pid" 2>/dev/null
     wait "$pid" 2>/dev/null
+}
 
-    cat "$log"
+# Was this archive treated as an entry point and handed to unrar?
+was_attempted() {
+    local name="$1"
+    if grep -qF "Attempting to extract: $work_dir/select/$name " "$scan_log"; then
+        echo "yes"
+    else
+        echo "no"
+    fi
 }
 
 rm -rf "$work_dir"
 mkdir -p "$work_dir"
 
 echo
-echo "Extraction and full cleanup of every volume"
-echo "-------------------------------------------"
+echo "Suite 1: multi-part entry point selection"
+echo "-----------------------------------------"
+
+mkdir -p "$work_dir/select"
+# Empty files are enough here: we only care which ones the scanner picks up,
+# not whether they extract.
+entry_points=(
+    plain.rar
+    a.part1.rar
+    b.part01.rar
+    c.part001.rar
+    d.part0001.rar
+    e.part00001.rar
+)
+later_volumes=(
+    a.part2.rar
+    a.part6.rar
+    b.part02.rar
+    b.part43.rar
+    c.part002.rar
+    c.part178.rar
+    d.part0002.rar
+    f.part10.rar
+    g.part100.rar
+)
+for name in "${entry_points[@]}" "${later_volumes[@]}"; do
+    touch "$work_dir/select/$name"
+done
+
+run_scan "$work_dir/select"
+
+for name in "${entry_points[@]}"; do
+    check "$name is an entry point" "yes" "$(was_attempted "$name")"
+done
+for name in "${later_volumes[@]}"; do
+    check "$name is skipped as a later volume" "no" "$(was_attempted "$name")"
+done
+
+echo
+echo "Suite 2: extraction and full cleanup of every volume"
+echo "----------------------------------------------------"
 
 if [ ! -d "$fixtures_dir" ]; then
     echo "  Fixtures missing. Run ./tests/make-fixtures.sh first."
@@ -92,7 +148,7 @@ for dir in "$fixtures_dir"/*/; do
     fixture_counts+=("$(find "$work_dir/extract/$name" -type f | wc -l | tr -d ' ')")
 done
 
-run_scan "$work_dir/extract" DELETE_RAR_AFTER_EXTRACTION=true > /dev/null
+run_scan "$work_dir/extract" DELETE_RAR_AFTER_EXTRACTION=true
 
 for i in "${!fixture_names[@]}"; do
     name="${fixture_names[$i]}"

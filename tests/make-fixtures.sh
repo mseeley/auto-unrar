@@ -12,8 +12,11 @@
 #                        from .rNN into .sNN (then .tNN, .uNN).
 #   part-1digit/         show.part1.rar .. show.part6.rar
 #   part-2digit/         show.part01.rar .. show.part43.rar
+#   part-3digit/         show.part001.rar .. show.part178.rar
 #                        rar chooses the padding width from the volume count,
-#                        so the payload size is what selects the naming.
+#                        so these three are the only way to get real archives
+#                        at each width. extract.sh must treat all of them as
+#                        entry points.
 #   single-volume/       solo.rar
 
 set -e
@@ -55,6 +58,7 @@ build_fixture old-style-volumes 150000 set.rar -ma4 -vn -v1000b
 
 build_fixture part-1digit    5000 show.rar -v1000b
 build_fixture part-2digit   36000 show.rar -v1000b
+build_fixture part-3digit  150000 show.rar -v1000b
 
 echo "Building single-volume/ ..."
 rm -rf "${fixtures_dir:?}/single-volume"
@@ -68,7 +72,7 @@ mkdir -p "$fixtures_dir/single-volume"
 
 echo
 echo "Fixtures built:"
-for dir in old-style-volumes part-1digit part-2digit single-volume; do
+for dir in old-style-volumes part-1digit part-2digit part-3digit single-volume; do
     count=$(find "$fixtures_dir/$dir" -type f | wc -l | tr -d ' ')
     first=$(find "$fixtures_dir/$dir" -type f -exec basename {} \; | sort | head -1)
     printf '  %-20s %4s files (first: %s)\n' "$dir" "$count" "$first"

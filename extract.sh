@@ -26,7 +26,18 @@ fi
 
 # Function to extract RAR files, considering overwrite flag and handling errors
 extract_rars() {
-    find "$source_directory" -type f \( \( -name "*.rar" -and -not -name "*.part*.rar" \) -or -name "*.part01.rar" -or -name "*.part1.rar" \) -print0 | while IFS= read -r -d $'\0' rarfile; do
+    find "$source_directory" -type f -name "*.rar" -print0 | while IFS= read -r -d $'\0' rarfile; do
+        # Only the first volume of a multi-part set is an entry point; unrar
+        # pulls in the remaining volumes itself. rar pads part numbers to a
+        # width that depends on how many volumes there are (.part1.rar up to 9,
+        # .part01.rar up to 99, .part001.rar beyond), so match any width and
+        # treat a 1 with any amount of zero padding as the first volume.
+        if [[ "$(basename "$rarfile")" =~ \.part([0-9]+)\.rar$ ]]; then
+            if [[ ! "${BASH_REMATCH[1]}" =~ ^0*1$ ]]; then
+                continue # A later volume of a set we either handled or will handle
+            fi
+        fi
+
         base_dir=$(dirname "$rarfile")
         output_dir="${extract_to_directory:-$base_dir}"
 
