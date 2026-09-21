@@ -53,6 +53,8 @@ services:
       # - DO_NOT_USE_MARKERS=false # Set to true to ignore markers and extract all archives
       # - EXTRACT_TO_DIRECTORY=/extract_to #Optional
       # - DELETE_RAR_AFTER_EXTRACTION=false # Set to true to delete RAR files post-extraction
+      # - PUID=1000 # For UserID - see User / Group Identifiers below
+      # - PGID=1000 # For GroupID - see User / Group Identifiers below
 
 ```
 
@@ -66,5 +68,23 @@ Also, remove "#" for any options that you want to use. If you don't use those op
 - **OVERWRITE_FILES:** When true, extracted files will overwrite any existing files with the same name. Default is false
 - **DO_NOT_USE_MARKERS:** If true, disables the use of marker files, leading to the extraction of all archives on each scan. Default is false
 - **EXTRACT_TO_DIRECTORY:** Define a specific directory for extracted files by changing "/path/to/your/directory/to/add/extracted/data" under volume. If this option is not used, files are extracted to their respective archive locations.
-- **DELETE_RAR_AFTER_EXTRACTION:** Set to true to remove RAR files after successful extraction. Default is false <be>
+- **DELETE_RAR_AFTER_EXTRACTION:** Set to true to remove RAR files after successful extraction. Default is false.
+- **PUID:** For UserID - see User / Group Identifiers below.
+- **PGID:** For GroupID - see User / Group Identifiers below.
+
+
+**User / Group Identifiers:**
+
+When using volumes, permissions issues can crop up between the host and the container. Docker runs containers as root by default, so anything Auto-UnRAR extracts ends up owned by root and you have to chown it before you can touch it. Setting **PUID** and **PGID** maps the container to a user on the host instead.
+
+Make sure the directories you mount are owned by the same user you specify, and the permissions issues go away.
+
+To find your values, run `id your_user`:
+
+```
+  $ id your_user
+    uid=1000(your_user) gid=1000(your_user) groups=1000(your_user)
+```
+
+Leaving both unset keeps the container running as root.
 
