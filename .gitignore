@@ -1,0 +1,6 @@
+# Generated test archives. These are bulky binary volume sets rather than
+# source; rebuild them with tests/make-fixtures.sh.
+tests/fixtures/
+
+# Scratch output from tests/run-tests.sh
+tests/work/

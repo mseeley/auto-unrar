@@ -78,14 +78,26 @@ extract_rars() {
         fi
 
         if [ "$delete_rar_after_extraction" = "true" ] && [ -f "$marker_file" ]; then
-            rm "$rarfile" # Delete the processed archive file
-            if [[ "$rarfile" =~ \.part01\.rar$ ]] || [[ "$rarfile" =~ \.part1\.rar$ ]]; then
-                base_name=$(basename "$rarfile" .rar | sed 's/.part[0-9][0-9]*//')
-                find "$base_dir" -type f -regex ".*$base_name\.part[0-9]+\.rar" -exec rm {} +
-            elif [[ "$rarfile" =~ \.rar$ ]]; then
-                # Handle deletion for traditional multi-part archives
-                base_name="${rarfile%.rar}"
-                find "$base_dir" -type f -regex ".*$base_name\.[rR][0-9][0-9]" -exec rm {} +
+            # Ask unrar which volumes it actually opened rather than guessing at
+            # extensions. It prints one "Extracting from <path>" line per volume,
+            # including the entry point, so this covers every naming scheme:
+            # .rar/.r00../.s00../.t00.. for sets over 100 volumes, and .partNN.rar
+            # regardless of how many digits the part numbers use.
+            deleted_count=0
+            while IFS= read -r volume; do
+                if [ -n "$volume" ] && [ -f "$volume" ]; then
+                    rm -f "$volume"
+                    deleted_count=$((deleted_count + 1))
+                fi
+            done <<< "$(printf '%s\n' "$output" | sed -n 's/^Extracting from //p')"
+
+            if [ "$deleted_count" -gt 0 ]; then
+                echo "Deleted $deleted_count archive volume(s) for: $rarfile"
+            else
+                # No volume lines in the output. Remove the entry point so it is
+                # never left behind, but leave anything we cannot identify alone.
+                echo "Warning: could not determine the volume list for $rarfile. Deleting the entry point only."
+                rm -f "$rarfile"
             fi
         fi
     done
