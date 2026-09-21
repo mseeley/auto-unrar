@@ -7,6 +7,9 @@ do_not_use_markers="${DO_NOT_USE_MARKERS:-false}"
 overwrite_files="${OVERWRITE_FILES:-false}"
 extract_to_directory="${EXTRACT_TO_DIRECTORY:-}"
 delete_rar_after_extraction="${DELETE_RAR_AFTER_EXTRACTION:-false}"
+# Password list for encrypted archives, one candidate per line. Users mount it
+# at /passwords.txt; PASSWORD_FILE overrides the path (used only by the tests).
+password_file="${PASSWORD_FILE:-/passwords.txt}"
 
 # Check for 'unrar' command availability
 if ! command -v unrar &> /dev/null; then
@@ -23,6 +26,56 @@ if [ -n "$extract_to_directory" ] && [ ! -d "$extract_to_directory" ]; then
         exit 1
     fi
 fi
+
+# Extracts one archive, trying candidate passwords if it turns out to be
+# encrypted. The first attempt uses -p- so that unrar fails instead of blocking
+# on stdin when a password is needed, which also stops an encrypted archive from
+# ever hanging the scan loop. Exit code 11 is unrar's "bad password"; on that
+# code, and only when a password file is configured, each non-empty line of the
+# file is tried in turn.
+#
+# Sets three variables for the caller: output (combined unrar output), result
+# (its exit code) and used_password (the password that worked, empty if none was
+# needed).
+run_unrar_extraction() {
+    local rarfile="$1" output_dir="$2" overwrite_flag="$3"
+    used_password=""
+
+    output=$(unrar x "$overwrite_flag" -p- "$rarfile" "$output_dir/" 2>&1)
+    result=$?
+
+    # Anything other than a bad password (success, CRC error, disk full, ...) is
+    # not something a different password would fix, so leave it for the caller.
+    if [ "$result" -ne 11 ]; then
+        return
+    fi
+
+    # Encrypted, but no list was mounted, so there is nothing to try.
+    if [ ! -f "$password_file" ]; then
+        echo "$rarfile is encrypted; mount a password list at $password_file to try candidates"
+        return
+    fi
+
+    echo "Archive is encrypted; trying passwords from $password_file"
+    local password
+    while IFS= read -r password || [ -n "$password" ]; do
+        [ -z "$password" ] && continue # Skip blank lines
+        output=$(unrar x "$overwrite_flag" -p"$password" "$rarfile" "$output_dir/" 2>&1)
+        result=$?
+        if [ "$result" -eq 0 ]; then
+            used_password="$password"
+            return
+        fi
+        # 11 means this candidate was wrong, so keep going. Any other code is a
+        # real failure unrelated to the password; stop and let the caller report
+        # it (its "already exists / no files to extract" handling included).
+        if [ "$result" -ne 11 ]; then
+            return
+        fi
+    done < "$password_file"
+
+    echo "No password from $password_file matched $rarfile"
+}
 
 # Function to extract RAR files, considering overwrite flag and handling errors
 extract_rars() {
@@ -64,11 +117,14 @@ extract_rars() {
         
         echo # This adds a blank line before each extraction attempt for better readability
         echo -e "\n\nAttempting to extract: $rarfile to $output_dir"
-        output=$(unrar x $overwrite_flag "$rarfile" "$output_dir/" 2>&1)
-        result=$?
-        
+        run_unrar_extraction "$rarfile" "$output_dir" "$overwrite_flag"
+
         if [ $result -eq 0 ]; then
-            echo "Extraction successful: $rarfile"
+            if [ -n "$used_password" ]; then
+                echo "Extraction successful (matched a password from $password_file): $rarfile"
+            else
+                echo "Extraction successful: $rarfile"
+            fi
             touch "$marker_file"
         else
             # Check output for indication of skipped files due to -o- flag

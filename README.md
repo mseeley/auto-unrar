@@ -46,6 +46,7 @@ services:
     volumes:
       - /path/to/your/data:/data
      # - /path/to/your/directory/to/add/extracted/data:/extract_to  # Optional: Specify a directory for extracted files
+     # - /path/to/your/passwords.txt:/passwords.txt:ro  # Optional: candidate passwords for encrypted archives, one per line
     environment:
       - SOURCE_DIRECTORY=/data
       - SLEEP_TIME=3600 # Default: Scan every hour
@@ -87,4 +88,16 @@ To find your values, run `id your_user`:
 ```
 
 Leaving both unset keeps the container running as root.
+
+
+**Password-Protected Archives:**
+
+To extract encrypted archives, mount a file of candidate passwords at `/passwords.txt`, one password per line:
+
+```yaml
+    volumes:
+      - /path/to/your/passwords.txt:/passwords.txt:ro
+```
+
+When an archive turns out to be encrypted, each password is tried in turn until one works. Unencrypted archives are unaffected and are extracted without consulting the list. If no file is mounted, encrypted archives are simply skipped and logged during archive scanning.
 

@@ -4,3 +4,4 @@
 # another file, add a matching "!" line here.
 *
 !extract.sh
+!entrypoint.sh

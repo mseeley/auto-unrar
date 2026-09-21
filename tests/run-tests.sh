@@ -158,6 +158,9 @@ fixture_names=()
 fixture_counts=()
 for dir in "$fixtures_dir"/*/; do
     name=$(basename "$dir")
+    # The encrypted fixture needs a password, so it cannot be extracted by a
+    # plain no-password scan; Suite 3 covers it.
+    [ "$name" = "encrypted" ] && continue
     cp -R "$dir" "$work_dir/extract/$name"
     fixture_names+=("$name")
     fixture_counts+=("$(find "$work_dir/extract/$name" -type f | wc -l | tr -d ' ')")
@@ -178,6 +181,57 @@ for i in "${!fixture_names[@]}"; do
         \( -name 'payload.bin' -o -name 'note.txt' \) | wc -l | tr -d ' ')
     check "$name: extracted payload intact" "1" "$payload"
 done
+
+echo
+echo "Suite 3: password-protected archives"
+echo "------------------------------------"
+
+if [ ! -d "$fixtures_dir/encrypted" ]; then
+    echo "  encrypted fixture missing, skipping"
+else
+    # The fixture list holds the right password third, after two wrong ones and
+    # before a fourth, so a successful extraction proves the loop tried and
+    # rejected the earlier candidates and then stopped rather than running on.
+    mkdir -p "$work_dir/enc-good"
+    cp "$fixtures_dir/encrypted/enc.rar" "$work_dir/enc-good/"
+    run_scan "$work_dir/enc-good" PASSWORD_FILE="$fixtures_dir/encrypted/passwords.txt"
+    payload=$(find "$work_dir/enc-good" -name payload.txt | wc -l | tr -d ' ')
+    check "password found after earlier wrong ones extracts the archive" "1" "$payload"
+
+    # A list of only wrong passwords must not extract anything.
+    mkdir -p "$work_dir/enc-bad"
+    cp "$fixtures_dir/encrypted/enc.rar" "$work_dir/enc-bad/"
+    printf 'nope-one\nnope-two\n' > "$work_dir/wrong-passwords.txt"
+    run_scan "$work_dir/enc-bad" PASSWORD_FILE="$work_dir/wrong-passwords.txt"
+    payload=$(find "$work_dir/enc-bad" -name payload.txt | wc -l | tr -d ' ')
+    check "no matching password leaves it unextracted" "0" "$payload"
+
+    # With no list at all the archive stays put, and the scan must not hang on a
+    # password prompt.
+    mkdir -p "$work_dir/enc-none"
+    cp "$fixtures_dir/encrypted/enc.rar" "$work_dir/enc-none/"
+    run_scan "$work_dir/enc-none" PASSWORD_FILE="$work_dir/does-not-exist.txt"
+    payload=$(find "$work_dir/enc-none" -name payload.txt | wc -l | tr -d ' ')
+    check "no password list leaves it unextracted" "0" "$payload"
+
+    # A password failure on one archive must not stop the scan reaching others.
+    # Two encrypted archives both fail against a wrong-only list; if the first
+    # failure aborted the loop the second would never be attempted and so would
+    # carry no error marker. Both markers being present proves the run visited
+    # both regardless of the order find returns them in. A plain archive shares
+    # the directory too, and its payload still has to come out.
+    mkdir -p "$work_dir/enc-continue"
+    cp "$fixtures_dir/encrypted/enc.rar" "$work_dir/enc-continue/first.rar"
+    cp "$fixtures_dir/encrypted/enc.rar" "$work_dir/enc-continue/second.rar"
+    cp "$fixtures_dir/single-volume/solo.rar" "$work_dir/enc-continue/"
+    run_scan "$work_dir/enc-continue" PASSWORD_FILE="$work_dir/wrong-passwords.txt"
+    first_errored=$(find "$work_dir/enc-continue" -name 'first.rar.extracted.error' | wc -l | tr -d ' ')
+    second_errored=$(find "$work_dir/enc-continue" -name 'second.rar.extracted.error' | wc -l | tr -d ' ')
+    plain_done=$(find "$work_dir/enc-continue" -name note.txt | wc -l | tr -d ' ')
+    check "first failed archive records an error" "1" "$first_errored"
+    check "second failed archive is still reached and records an error" "1" "$second_errored"
+    check "plain archive alongside failures still extracts" "1" "$plain_done"
+fi
 
 echo
 echo "===================================================="

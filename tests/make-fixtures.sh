@@ -19,6 +19,7 @@
 #                        entry points.
 #   upper-case/          SHOW.PART1.RAR .. SHOW.PART7.RAR
 #   single-volume/       solo.rar
+#   encrypted/           enc.rar (header-encrypted) plus passwords.txt
 
 set -e
 
@@ -82,9 +83,24 @@ mkdir -p "$fixtures_dir/single-volume"
     rm -f note.txt
 )
 
+# Header-encrypted archive plus a candidate list for the password suite. The
+# password contains a space on purpose, so the test exercises quoting. It lives
+# only in passwords.txt, so the fixture and the test cannot drift apart.
+echo "Building encrypted/ ..."
+rm -rf "${fixtures_dir:?}/encrypted"
+mkdir -p "$fixtures_dir/encrypted"
+(
+    cd "$fixtures_dir/encrypted"
+    password='correct horse battery'
+    echo "the secret payload" > payload.txt
+    rar a -inul -hp"$password" enc.rar payload.txt
+    rm -f payload.txt
+    printf 'wrong-one\nwrong-two\n%s\nwrong-three\n' "$password" > passwords.txt
+)
+
 echo
 echo "Fixtures built:"
-for dir in old-style-volumes part-1digit part-2digit part-3digit upper-case single-volume; do
+for dir in old-style-volumes part-1digit part-2digit part-3digit upper-case single-volume encrypted; do
     count=$(find "$fixtures_dir/$dir" -type f | wc -l | tr -d ' ')
     first=$(find "$fixtures_dir/$dir" -type f -exec basename {} \; | sort | head -1)
     printf '  %-20s %4s files (first: %s)\n' "$dir" "$count" "$first"
