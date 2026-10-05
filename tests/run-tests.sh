@@ -158,9 +158,9 @@ fixture_names=()
 fixture_counts=()
 for dir in "$fixtures_dir"/*/; do
     name=$(basename "$dir")
-    # The encrypted fixture needs a password, so it cannot be extracted by a
-    # plain no-password scan; Suite 3 covers it.
-    [ "$name" = "encrypted" ] && continue
+    # The encrypted fixture needs a password and the incomplete one is meant to
+    # fail, so neither can be extracted by a plain scan. Suites 3 and 4 cover them.
+    case "$name" in encrypted|incomplete-set) continue ;; esac
     cp -R "$dir" "$work_dir/extract/$name"
     fixture_names+=("$name")
     fixture_counts+=("$(find "$work_dir/extract/$name" -type f | wc -l | tr -d ' ')")
@@ -231,6 +231,41 @@ else
     check "first failed archive records an error" "1" "$first_errored"
     check "second failed archive is still reached and records an error" "1" "$second_errored"
     check "plain archive alongside failures still extracts" "1" "$plain_done"
+fi
+
+echo
+echo "Suite 4: failure reason is surfaced, not swallowed"
+echo "-------------------------------------------------"
+
+if [ ! -d "$fixtures_dir/incomplete-set" ]; then
+    echo "  incomplete-set fixture missing, skipping"
+else
+    mkdir -p "$work_dir/incomplete"
+    cp "$fixtures_dir/incomplete-set/"*.rar "$work_dir/incomplete/"
+    run_scan "$work_dir/incomplete"
+
+    # unrar's reason must reach the log instead of a bare "Error extracting".
+    if grep -qiF "Cannot find volume" "$scan_log"; then
+        pass "missing-volume reason appears in the log"
+    else
+        fail "missing-volume reason appears in the log"
+    fi
+
+    # ...and be recorded in the error marker for later inspection.
+    marker=$(find "$work_dir/incomplete" -name '*.extracted.error' | head -1)
+    if [ -n "$marker" ] && grep -qiF "Cannot find volume" "$marker"; then
+        pass "missing-volume reason recorded in the error marker"
+    else
+        fail "missing-volume reason recorded in the error marker"
+    fi
+
+    # The attempt count must still be a bare integer on the marker's first line,
+    # so the >= 5 errorskip logic keeps working alongside the stored message.
+    first_line=$(head -n 1 "$marker" 2>/dev/null)
+    case "$first_line" in
+        ''|*[!0-9]*) fail "error marker first line is the attempt count (got: '$first_line')" ;;
+        *) pass "error marker first line is the attempt count" ;;
+    esac
 fi
 
 echo

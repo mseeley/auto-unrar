@@ -132,21 +132,39 @@ extract_rars() {
                 echo "Completed with file skips (existing files not overwritten): $rarfile"
                 touch "$marker_file" # Still mark as successfully extracted
             else
-                # Increment error count in the errormarker file
+                # Keep the attempt count on the first line of the marker so the
+                # >= 5 skip test still works, then store the last error below it
+                # so the reason (a missing volume, a CRC error) survives. Old
+                # markers held only the count, which is still a valid first line.
                 if [ -f "$errormarker_file" ]; then
-                    error_count=$(<"$errormarker_file")
+                    error_count=$(head -n 1 "$errormarker_file")
+                    case "$error_count" in ''|*[!0-9]*) error_count=0 ;; esac
                     error_count=$((error_count + 1))
-                    echo "$error_count" > "$errormarker_file"
                 else
-                    echo "1" > "$errormarker_file"
+                    error_count=1
                 fi
+                {
+                    echo "$error_count"
+                    echo "Last error extracting $rarfile:"
+                    printf '%s\n' "$output"
+                } > "$errormarker_file"
 
                 # Create error skip marker if error count exceeds 5
-                if [ "$(cat "$errormarker_file")" -ge 5 ]; then
+                if [ "$error_count" -ge 5 ]; then
                     touch "$errorskipmarker_file"
                 fi
 
-                echo "Error extracting $rarfile" 
+                echo "Error extracting $rarfile"
+                # Surface the reason in the log. Prefer the error-looking lines so
+                # the progress chatter does not drown them, but fall back to the
+                # whole output so the reason is never hidden.
+                error_summary=$(printf '%s\n' "$output" \
+                    | grep -iE 'cannot|error|checksum|crc|no space|corrupt|fail|not found')
+                if [ -n "$error_summary" ]; then
+                    printf '%s\n' "$error_summary"
+                else
+                    printf '%s\n' "$output"
+                fi
             fi
         fi
 

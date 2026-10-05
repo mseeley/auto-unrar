@@ -20,6 +20,7 @@
 #   upper-case/          SHOW.PART1.RAR .. SHOW.PART7.RAR
 #   single-volume/       solo.rar
 #   encrypted/           enc.rar (header-encrypted) plus passwords.txt
+#   incomplete-set/      a multi-volume set with its last volume removed
 
 set -e
 
@@ -98,9 +99,24 @@ mkdir -p "$fixtures_dir/encrypted"
     printf 'wrong-one\nwrong-two\n%s\nwrong-three\n' "$password" > passwords.txt
 )
 
+# A multi-volume set with its final volume removed, so extraction fails with
+# "Cannot find volume". Used to check that the failure reason reaches the log and
+# the error marker rather than being swallowed.
+echo "Building incomplete-set/ ..."
+rm -rf "${fixtures_dir:?}/incomplete-set"
+mkdir -p "$fixtures_dir/incomplete-set"
+(
+    cd "$fixtures_dir/incomplete-set"
+    head -c 9000 /dev/urandom > payload.bin
+    rar a -inul -v2000b set.rar payload.bin
+    rm -f payload.bin
+    last=$(ls set.part*.rar | sort | tail -1)
+    rm -f "$last"
+)
+
 echo
 echo "Fixtures built:"
-for dir in old-style-volumes part-1digit part-2digit part-3digit upper-case single-volume encrypted; do
+for dir in old-style-volumes part-1digit part-2digit part-3digit upper-case single-volume encrypted incomplete-set; do
     count=$(find "$fixtures_dir/$dir" -type f | wc -l | tr -d ' ')
     first=$(find "$fixtures_dir/$dir" -type f -exec basename {} \; | sort | head -1)
     printf '  %-20s %4s files (first: %s)\n' "$dir" "$count" "$first"
