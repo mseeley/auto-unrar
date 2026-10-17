@@ -30,6 +30,9 @@ jobs:
             runner: ubuntu-latest
             emulated: true
     runs-on: ${{ matrix.runner }}
+    # A run takes minutes. The cap stops a hang (most likely under emulation)
+    # from holding a runner for GitHub's default of six hours.
+    timeout-minutes: 30
     env:
       TEST_PLATFORM: ${{ matrix.platform }}
       # Emulated unrar runs can sit silent well past the default 3 seconds.
