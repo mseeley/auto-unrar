@@ -196,6 +196,32 @@ extract_rars() {
 
 
 
+# Turns a number of seconds into "2 minutes", "1 hour 30 minutes" and so on,
+# leaving out any unit that is zero. Anything else sleep accepts, such as
+# "1h", is shown as given.
+describe_interval() {
+    local total="$1" parts=() count unit
+    if ! [[ "$total" =~ ^[0-9]+$ ]]; then
+        echo "$total"
+        return
+    fi
+    # Base 10, so a leading zero ("0120") is not read as octal.
+    total=$((10#$total))
+    for unit in hour:3600 minute:60 second:1; do
+        count=$((total / ${unit#*:}))
+        total=$((total % ${unit#*:}))
+        if [ "$count" -eq 1 ]; then
+            parts+=("1 ${unit%%:*}")
+        elif [ "$count" -gt 1 ]; then
+            parts+=("$count ${unit%%:*}s")
+        fi
+    done
+    if [ "${#parts[@]}" -eq 0 ]; then
+        parts=("0 seconds")
+    fi
+    echo "${parts[*]}"
+}
+
 # Display ASCII art and welcome message
 cat << "EOF"
    _____          __                    ____ ___     __________    _____ __________ 
@@ -204,26 +230,20 @@ cat << "EOF"
 /    |    \  |  /|  | (  <_> ) /_____/ |    |  /   |  \    |   \/    |    \    |   \
 \____|__  /____/ |__|  \____/          |______/|___|  /____|_  /\____|__  /____|_  /
         \/                                          \/       \/         \/       \/ 
-Auto-UnRAR by nicxx2
-Thank you for using my tool.
 EOF
 
-echo # Adds an extra line after the welcome message
-
-# Calculate hours and minutes from sleep_time for the welcome message
-hours=$((sleep_time / 3600))
-minutes=$(((sleep_time % 3600) / 60))
-
-echo # Adds an extra line before the check frequency message
-
-# Show initial message about check frequency
-echo "Checks will be done every $hours hour(s) and $minutes minute(s)."
-
-echo # Adds an extra line after the check frequency message
-
-# Message about the log behavior
-echo "Below it will show the extraction of the RAR files when the checking process is running."
-echo "If nothing is shown below, it's because nothing was extracted yet, or files were already marked in the past using this tool and thus are skipped."
+# The release workflow bakes the version in. Local builds show "dev".
+echo "Auto-UnRAR ${AUTO_UNRAR_VERSION:-dev}"
+echo "https://github.com/mseeley/auto-unrar, a fork of Nicxx2/auto-unrar"
+echo
+echo "Scanning $source_directory every $(describe_interval "$sleep_time")."
+echo "Extractions are logged below as they happen."
+if [ "$do_not_use_markers" = "false" ]; then
+    echo "Archives already extracted, or given up on after repeated failures,"
+    echo "are skipped without a message."
+else
+    echo "Markers are off, so every archive is extracted again on each scan."
+fi
 
 
 echo # Adds an extra line before starting the infinite loop

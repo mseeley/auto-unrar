@@ -13,6 +13,12 @@ COPY entrypoint.sh /entrypoint.sh
 # Ensure the scripts are executable
 RUN chmod +x /extract.sh /entrypoint.sh
 
+# Shown in the startup banner. The release workflow passes the release
+# version; local builds leave it as "dev". Declared last so a new version
+# does not invalidate the cached layers above.
+ARG VERSION=dev
+ENV AUTO_UNRAR_VERSION=$VERSION
+
 # The entrypoint drops privileges when asked to and then runs the command.
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/extract.sh"]
