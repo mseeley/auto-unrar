@@ -16,7 +16,7 @@ Auto-UnRAR is a Dockerized utility crafted to streamline the extraction of RAR f
 
 **Key Features:**
 
-- Cross-Platform Compatibility: Runs effortlessly on a variety of systems, including Windows, Linux, and ARM-based devices such as Raspberry Pi 4 / Raspberry Pi 5.
+- Cross-Platform Compatibility: Runs effortlessly on a variety of systems, including Windows, Linux, and ARM-based devices such as Raspberry Pi 4 / Raspberry Pi 5, on both 64-bit and 32-bit operating systems.
 - Flexible Archive Handling: Offers options to either preserve or delete original RAR files post-extraction, catering to diverse data management preferences.
 - Configurable Automatic Scans: Performs scans at user-defined intervals, guaranteeing that new archives are extracted promptly with zero manual effort.
 - Smart Non-Destructive Extraction: Employs an extraction strategy that prevents overwriting of existing files by default, preserving the integrity of your data. With configurable settings, users can opt to overwrite existing files if needed.

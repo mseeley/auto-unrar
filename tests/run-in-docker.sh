@@ -18,6 +18,13 @@ tests_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_dir="$(dirname "$tests_dir")"
 image="auto-unrar-tests"
 
+# TEST_PLATFORM (e.g. linux/arm/v7) builds and runs the image for another
+# platform. That needs QEMU registered with the host, as CI does for arm/v7.
+platform_args=()
+if [ -n "${TEST_PLATFORM:-}" ]; then
+    platform_args=(--platform "$TEST_PLATFORM")
+fi
+
 if ! command -v docker &> /dev/null; then
     echo "Error: docker is not installed."
     exit 1
@@ -32,13 +39,14 @@ fi
 # Progress stays on screen: the apt step takes long enough that a quiet build
 # is hard to tell apart from a hung one.
 echo "Building $image ..."
-docker build -t "$image" "$repo_dir"
+docker build "${platform_args[@]}" -t "$image" "$repo_dir"
 
 echo "Running tests in $image ..."
 echo
-exec docker run --rm \
+exec docker run --rm "${platform_args[@]}" \
     -v "$tests_dir:/tests:ro" \
     -e EXTRACT_SH=/extract.sh \
     -e TEST_WORK_DIR=/tmp/work \
+    -e SCAN_SETTLE="${SCAN_SETTLE:-3}" \
     "$image" \
     bash /tests/run-tests.sh

@@ -1,7 +1,8 @@
 # Runs the test suite inside the image on every branch push and pull request,
-# and before every release (release.yml calls this workflow). Each platform
-# the image is published for is tested on a native runner, so the arm64 build
-# is actually run rather than only compiled.
+# and before every release (release.yml calls this workflow). Every platform
+# the image is published for is run, not only compiled: amd64 and arm64 on
+# native runners, and 32-bit arm/v7 under QEMU, since GitHub has no 32-bit
+# ARM runners.
 
 name: Test
 
@@ -16,13 +17,28 @@ permissions:
 
 jobs:
   test:
+    name: test (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+          - platform: linux/arm/v7
+            runner: ubuntu-latest
+            emulated: true
     runs-on: ${{ matrix.runner }}
+    env:
+      TEST_PLATFORM: ${{ matrix.platform }}
+      # Emulated unrar runs can sit silent well past the default 3 seconds.
+      SCAN_SETTLE: ${{ matrix.emulated && 15 || 3 }}
     steps:
       - uses: actions/checkout@v7
+
+      - if: matrix.emulated
+        uses: docker/setup-qemu-action@v4
 
       - name: Extraction tests
         run: ./tests/run-in-docker.sh

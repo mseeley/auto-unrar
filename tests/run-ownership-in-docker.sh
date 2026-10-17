@@ -14,6 +14,12 @@ tests_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_dir="$(dirname "$tests_dir")"
 image="auto-unrar-tests"
 
+# TEST_PLATFORM works as in run-in-docker.sh.
+platform_args=()
+if [ -n "${TEST_PLATFORM:-}" ]; then
+    platform_args=(--platform "$TEST_PLATFORM")
+fi
+
 passed=0
 failed=0
 
@@ -35,18 +41,18 @@ if [ ! -d "$tests_dir/fixtures/single-volume" ]; then
 fi
 
 echo "Building $image ..."
-docker build -t "$image" "$repo_dir" > /dev/null || exit 1
+docker build "${platform_args[@]}" -t "$image" "$repo_dir" > /dev/null || exit 1
 
 # Runs one extraction in the container under the given environment and echoes
 # "<uid>:<gid> <uid>:<gid>" for the extracted payload and the marker file.
 ownership_after_extraction() {
-    docker run --rm "$@" \
+    docker run --rm "${platform_args[@]}" "$@" \
         -v "$tests_dir/fixtures:/fixtures:ro" \
         "$image" \
         bash -c '
             cp -R /fixtures/single-volume /tmp/data 2>/dev/null
             SOURCE_DIRECTORY=/tmp/data SLEEP_TIME=30 /extract.sh > /tmp/scan.log 2>&1 &
-            for _ in $(seq 1 30); do
+            for _ in $(seq 1 60); do
                 [ -f /tmp/data/note.txt ] && [ -f /tmp/data/solo.rar.extracted.marker ] && break
                 sleep 1
             done

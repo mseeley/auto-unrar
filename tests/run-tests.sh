@@ -19,6 +19,9 @@
 # Environment:
 #   EXTRACT_SH      script under test, defaults to the one beside this directory
 #   TEST_WORK_DIR   scratch directory, defaults to tests/work
+#   SCAN_SETTLE     seconds of unchanged scan output that count as the scan
+#                   being finished, defaults to 3. Raise it under emulation,
+#                   where a single unrar run can sit silent for longer.
 
 # Job control, so each scan runs in its own process group and can be shut down
 # along with the sleep it spawns. Killing the group avoids needing pkill, which
@@ -31,6 +34,7 @@ fixtures_dir="$tests_dir/fixtures"
 extract_sh="${EXTRACT_SH:-$repo_dir/extract.sh}"
 work_dir="${TEST_WORK_DIR:-$tests_dir/work}"
 scan_log="$work_dir/scan.log"
+scan_settle="${SCAN_SETTLE:-3}"
 
 passed=0
 failed=0
@@ -69,7 +73,7 @@ run_scan() {
         size=$(wc -c < "$log" 2>/dev/null || echo 0)
         if [ "$size" -eq "$last" ]; then
             stable=$((stable + 1))
-            [ "$stable" -ge 3 ] && break
+            [ "$stable" -ge "$scan_settle" ] && break
         else
             stable=0
         fi
