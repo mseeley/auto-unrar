@@ -39,13 +39,13 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # The runner is amd64, so arm64 is built under emulation.
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -53,7 +53,7 @@ jobs:
       # Turns the release tag into image tags. Pre-releases do not get latest.
       # The action's own automatic latest is off so the line below decides.
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ vars.DOCKERHUB_USERNAME }}/auto-unrar
           flavor: |
@@ -62,7 +62,7 @@ jobs:
             type=semver,pattern={{version}}
             type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
