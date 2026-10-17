@@ -1,31 +1,21 @@
-![Sponsored OSS](https://img.shields.io/badge/Sponsored-OSS-8a3af8?logo=github-sponsors&logoColor=white)
+![Docker Pulls](https://img.shields.io/docker/pulls/mattseeley/auto-unrar)
 
-![Docker Pulls](https://img.shields.io/docker/pulls/nicxx2/auto-unrar)
+![License](https://img.shields.io/github/license/mseeley/auto-unrar)
 
-![License](https://img.shields.io/github/license/Nicxx2/auto-unrar)
+> **This is a fork of [Nicxx2/auto-unrar](https://github.com/Nicxx2/auto-unrar).**
+> It adds password-protected archive support, PUID/PGID file ownership, better
+> multi-part archive handling, clearer extraction errors, and a test suite.
+> Images are published to [mattseeley/auto-unrar](https://hub.docker.com/r/mattseeley/auto-unrar).
+> All credit for the original project goes to Nicxx2.
 
+<img src="auto_unrar.png" alt="Auto UnRAR" title="Auto UnRAR Script" width="500"/>
 
----
-
-## 💖 Support This Project
-
-If you found this helpful and want to support what I do, you can leave a tip here — thank you so much!
-
-[![Support on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/nicxx2)
-
----
-
-
-
-<img src="https://github.com/Nicxx2/auto-unrar/blob/main/auto_unrar.png?raw=true" alt="Auto UnRAR" title="Auto UnRAR Script" width="500"/>
-
-
-
-**Auto-UnRAR: Enhanced Archive Extraction Tool**  
+**Auto-UnRAR: Enhanced Archive Extraction Tool**
 
 Auto-UnRAR is a Dockerized utility crafted to streamline the extraction of RAR files across multiple environments seamlessly. Designed for both simplicity and efficiency, it automates the detection and extraction of RAR archives, operating quietly in the background. From media enthusiasts organizing vast libraries to professionals managing extensive data archives, Auto-UnRAR is the go-to solution for automating the archive extraction workflow.
 
-**Key Features:**  
+**Key Features:**
+
 - Cross-Platform Compatibility: Runs effortlessly on a variety of systems, including Windows, Linux, and ARM-based devices such as Raspberry Pi 4 / Raspberry Pi 5.
 - Flexible Archive Handling: Offers options to either preserve or delete original RAR files post-extraction, catering to diverse data management preferences.
 - Configurable Automatic Scans: Performs scans at user-defined intervals, guaranteeing that new archives are extracted promptly with zero manual effort.
@@ -33,20 +23,19 @@ Auto-UnRAR is a Dockerized utility crafted to streamline the extraction of RAR f
 - Efficient Processing: Uses marker files to avoid reprocessing previously extracted archives, enhancing subsequent scans for speed and reduced resource consumption. This feature can be disabled for continuous extraction regardless of previous runs.
 - Customizable Setup: Easily tailor the scan directory, extraction behaviour, and scan frequency via simple environment variables, making it adaptable to specific requirements.
 
-
 **Getting Started:**  
 To use Auto-UnRAR, simply pull the Docker image from Docker Hub and run it with Docker or Docker Compose.<br>
-**Link:** https://hub.docker.com/r/nicxx2/auto-unrar
+**Link:** https://hub.docker.com/r/mattseeley/auto-unrar
 
 ```yaml
-version: '3.8'
+version: "3.8"
 services:
   auto-unrar:
-    image: nicxx2/auto-unrar:latest
+    image: mattseeley/auto-unrar:latest
     volumes:
       - /path/to/your/data:/data
-     # - /path/to/your/directory/to/add/extracted/data:/extract_to  # Optional: Specify a directory for extracted files
-     # - /path/to/your/passwords.txt:/passwords.txt:ro  # Optional: candidate passwords for encrypted archives, one per line
+      # - /path/to/your/directory/to/add/extracted/data:/extract_to  # Optional: Specify a directory for extracted files
+      # - /path/to/your/passwords.txt:/passwords.txt:ro  # Optional: candidate passwords for encrypted archives, one per line
     environment:
       - SOURCE_DIRECTORY=/data
       - SLEEP_TIME=3600 # Default: Scan every hour
@@ -56,14 +45,13 @@ services:
       # - DELETE_RAR_AFTER_EXTRACTION=false # Set to true to delete RAR files post-extraction
       # - PUID=1000 # For UserID - see User / Group Identifiers below
       # - PGID=1000 # For GroupID - see User / Group Identifiers below
-
 ```
 
 **Note:** Replace **/path/to/your/data** with the path to the directory you want Auto-UnRAR to scan.
 Also, remove "#" for any options that you want to use. If you don't use those options, then the default options set in the extraction script will be used.
 
-
 **Customization Options:**
+
 - **SOURCE_DIRECTORY:** Directory to scan for RAR files.
 - **SLEEP_TIME:** Interval (in seconds) between scans. Default is 3600 seconds (1 hour).
 - **OVERWRITE_FILES:** When true, extracted files will overwrite any existing files with the same name. Default is false
@@ -72,7 +60,6 @@ Also, remove "#" for any options that you want to use. If you don't use those op
 - **DELETE_RAR_AFTER_EXTRACTION:** Set to true to remove RAR files after successful extraction. Default is false.
 - **PUID:** For UserID - see User / Group Identifiers below.
 - **PGID:** For GroupID - see User / Group Identifiers below.
-
 
 **User / Group Identifiers:**
 
@@ -89,15 +76,17 @@ To find your values, run `id your_user`:
 
 Leaving both unset keeps the container running as root.
 
-
 **Password-Protected Archives:**
 
 To extract encrypted archives, mount a file of candidate passwords at `/passwords.txt`, one password per line:
 
 ```yaml
-    volumes:
-      - /path/to/your/passwords.txt:/passwords.txt:ro
+volumes:
+  - /path/to/your/passwords.txt:/passwords.txt:ro
 ```
 
 When an archive turns out to be encrypted, each password is tried in turn until one works. Unencrypted archives are unaffected and are extracted without consulting the list. If no file is mounted, encrypted archives are simply skipped and logged during archive scanning.
 
+**AI Provenance:**
+
+Most of the changes in this fork were written with the help of Claude, Anthropic's AI coding assistant. That covers the code, and the tests and this README. Each commit made this way has a `Co-Authored-By: Claude` trailer, so `git log` shows exactly which changes involved AI. The original project by Nicxx2 is not covered by this statement.
