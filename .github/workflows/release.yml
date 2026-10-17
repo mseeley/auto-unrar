@@ -1,0 +1,68 @@
+# Publishes the image to Docker Hub when a release or pre-release is published
+# on GitHub. A release tagged v1.2.3 becomes image tags 1.2.3 and latest. A
+# pre-release tagged v1.3.0-rc.1 becomes 1.3.0-rc.1 only, so it can be pulled
+# for live testing without moving latest.
+#
+# Needs two settings under Settings > Secrets and variables > Actions:
+#   DOCKERHUB_USERNAME  variable  the Docker Hub account, e.g. mattseeley
+#   DOCKERHUB_TOKEN     secret    a Docker Hub access token with Read & Write
+
+name: Release
+
+on:
+  release:
+    # prereleased fires for a published pre-release; released fires for a
+    # published release or a pre-release promoted to one. 'published' would
+    # also match, but fires alongside released and would build twice.
+    types: [prereleased, released]
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      # Without a vX.Y.Z tag no version tag is generated, and a full release
+      # would push latest alone. Stop before anything is built or pushed.
+      - name: Check the release tag is vX.Y.Z
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Release tag '$TAG' is not vX.Y.Z or vX.Y.Z-suffix"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      # The runner is amd64, so arm64 is built under emulation.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Turns the release tag into image tags. Pre-releases do not get latest.
+      # The action's own automatic latest is off so the line below decides.
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ vars.DOCKERHUB_USERNAME }}/auto-unrar
+          flavor: |
+            latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
