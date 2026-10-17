@@ -1,0 +1,33 @@
+# Runs the test suite inside the image on every branch push and pull request,
+# and before every release (release.yml calls this workflow). Each platform
+# the image is published for is tested on a native runner, so the arm64 build
+# is actually run rather than only compiled.
+
+name: Test
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Extraction tests
+        run: ./tests/run-in-docker.sh
+
+      # A Linux host does not remap bind-mount ownership the way Docker on
+      # macOS does, so this checks the real behaviour.
+      - name: Ownership tests
+        run: ./tests/run-ownership-in-docker.sh
