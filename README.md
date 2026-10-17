@@ -1,4 +1,4 @@
-![Docker Pulls](https://img.shields.io/docker/pulls/mattseeley/auto-unrar)
+![Docker Pulls](https://img.shields.io/docker/pulls/mattseeley/auto-unrar?cacheSeconds=3600)
 
 ![License](https://img.shields.io/github/license/mseeley/auto-unrar)
 
