@@ -4,7 +4,8 @@
 # 'rar' binary (the 'unrar' package alone cannot create archives). Safe to
 # re-run: every fixture directory is rebuilt from scratch.
 #
-# The fixtures are gitignored, so run this once before running the tests.
+# The fixtures are committed, so the tests (and CI) run without 'rar'. Re-run
+# this only when adding or changing a layout, then commit the result.
 #
 # Layouts covered:
 #   old-style-volumes/   set.rar + set.r00..r99 + set.s00..s63

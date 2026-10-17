@@ -1,2 +1,5 @@
 * text=auto eol=lf
 *.sh text eol=lf
+
+# Test archives are binary. Never normalise their line endings.
+tests/fixtures/** binary
